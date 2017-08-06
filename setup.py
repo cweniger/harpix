@@ -12,7 +12,7 @@ setup(
     description='A thin healpy wrapper to enable multi-resolution pixelization of the sphere.',
     author='Christoph Weniger',
     author_mail='c.weniger@uva.nl',
-    packages=['metricplot'],
-    package_data={'metricplot': [] },
+    packages=['harpix'],
+    package_data={'harpix': [] },
     long_description="""Hierachical Adaptive Resolution PIXelization.""",
 )

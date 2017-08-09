@@ -177,7 +177,7 @@ class HARPix():
         r = HARPix(dims = dims)
         r.order = self.order
         r.ipix = self.ipix
-        data = np.tile(self.data.flatten(), n)*np.repeat(values, len(self.data.flatten()))
+        data = np.repeat(self.data.flatten(), n)*np.tile(values, len(self.data.flatten()))
         r.data = data.reshape((-1,)+dims)
         return r
 

@@ -149,15 +149,19 @@ class HARPix():
         self.data = np.empty((0,)+self.dims, dtype=np.float64)
 
     @classmethod
-    def from_healpix(cls, m):
+    def from_healpix(cls, m, nest = True):
         npix = len(m)
         nside = hp.npix2nside(npix)
         order = hp.nside2order(nside)
 
         dims = np.shape(m[0])
         r = cls(dims = dims)
-        r.data = m
         r.ipix = np.arange(npix, dtype=np.int64)
+        if not nest:
+            i = hp.nest2ring(nside, r.ipix)
+            r.data = m[i]
+        else:
+            r.data = m
         r.order = np.ones(npix, dtype=np.int8)*order
         return r
 

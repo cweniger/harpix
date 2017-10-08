@@ -13,11 +13,17 @@ from copy import deepcopy
 # A thin python wrapper around healpix
 
 def zeros_like(h):
+    """Create zero HARPix object with shape of `h`.
+
+    Parameters
+    ----------
+    * `h` [HARPix]: HARPix object.
+    """
     H = deepcopy(h)
     H.data *= 0.
     return H
 
-def trans_data(T, data):
+def _trans_data(T, data):
     # FIXME: Rewrite just as matrix products
     dims = np.shape(data)[1:]
     Nout, Nin = T.shape
@@ -36,6 +42,18 @@ def trans_data(T, data):
     return out
 
 def get_trans_matrix(IN, OUT, nest = True, counts = False):
+    """Return transformation matrix.
+
+    Parameters
+    ----------
+    * `IN` [HARPix]: Harpix input map.
+    * `OUT` [HARPix]: Harpix output map.
+
+    Returns
+    -------
+    * `M` [array-like]: Matrix that transforms flattened data of format IN onto
+      flattened data of format OUT.
+    """
     if isinstance(IN, HARPix) and isinstance(OUT, HARPix):
         if counts: raise NotImplementedError()
         return _get_trans_matrix_HARP2HARP(IN, OUT)
@@ -142,7 +160,17 @@ def _get_trans_matrix_HARP2HARP(Hin, Hout):
 
 
 class HARPix():
+    """Thin healpy wrapper to allow multi-resolution maps.
+    """
     def __init__(self, dims = ()):
+        """Constructor.
+
+        The constructor returns an empty HARPix object without any pixels set.
+
+        Parameters
+        ----------
+        * `dims` [tuple of integers]: Dimensions of per pixel data
+        """
         self.ipix = np.empty((0,), dtype=np.int64)
         self.order = np.empty((0,), dtype=np.int8)
         self.dims = dims
@@ -150,6 +178,13 @@ class HARPix():
 
     @classmethod
     def from_healpix(cls, m, nest = True):
+        """Construct HARPix object from regular healpix data.
+
+        Parameters
+        ----------
+        * `m` [array]: Data array.
+        * `nest` [boolean]: If `True`, assume nested data.
+        """
         npix = len(m)
         nside = hp.npix2nside(npix)
         order = hp.nside2order(nside)
@@ -167,6 +202,12 @@ class HARPix():
 
     @classmethod
     def from_file(cls, filename):
+        """Construct HARPIx object from *.npy file.
+
+        Parameters
+        ----------
+        * `filename` [string]: Filename of *.npy file.
+        """
         data = np.load(filename)
         r = cls(dims = data['dims'])
         r.ipix = data['ipix']
@@ -175,7 +216,15 @@ class HARPix():
         return r
 
     def expand(self, values):
-        """Return new HARPix object with expanded data."""
+        """Return new HARPix object with expanded data.
+
+        If `n = len(values)` and `dim = (k, m)`, this method returns an object
+        with `dim = (k, m, n)`, and `data[k, m, n] = data_old[k, m] * values[n]`.
+
+        Parameters
+        ----------
+        * `values` [1-D floats]: List of floats to use in expansion.
+        """
         n = len(values)
         dims = self.dims + (n,)
         r = HARPix(dims = dims)
@@ -189,20 +238,33 @@ class HARPix():
         np.savez(filename, ipix = self.ipix, order = self.order, dims = self.dims, data = self.data)
         return self
 
-    def set_data(self, data):
+    def _set_data(self, data):
+        """Overwrite data.
+
+        Parameters
+        ----------
+        * `data` [array-like]: Data that overwrites internal data.
+        """
         assert np.prod(np.shape(self.data)) == np.prod(np.shape(data))
         self.data = data.reshape((-1,)+self.dims)
         return self
 
     @classmethod
-    def from_data(cls, h, data, div_sr = False):
+    def _from_data(cls, h, data, div_sr = False):
         H = deepcopy(h)
-        H.set_data(data)
+        H._set_data(data)
         if div_sr:
             H._div_sr()
         return H
 
     def get_data(self, mul_sr = False):
+        """Return data array.
+
+        Parameters
+        ----------
+        * `mul_sr` [boolean]: If `True`, multiply data with pixel size in
+        steradian before returning.
+        """
         if not mul_sr:
             return deepcopy(self.data)
         else:
@@ -210,12 +272,25 @@ class HARPix():
             return (self.data.T*sr).T
 
     def print_info(self):
+        """Print summary information."""
         print "Number of pixels: %i"%len(self.data)
         print "Minimum nside:    %i"%hp.order2nside(min(self.order))
         print "Maximum nside:    %i"%hp.order2nside(max(self.order))
         return self
 
     def add_singularity(self, vec, r0, r1, n = 100):
+        """Add region with centrally increasing pixel density.
+
+        The grid is defined such that each radius r with r0<r<r1 contains
+        at least `n` pixels with decreasing size towards the center.
+
+        Parameters
+        ----------
+        * `vec` [3-tupel]: Central direction.
+        * `r0` [float]: Inner radius [deg]
+        * `r1` [float]: Outer radius [deg]
+        * `n` [int]: Number of pixels.
+        """
         sr0 = np.deg2rad(r0)**2*np.pi/n
         sr1 = np.deg2rad(r1)**2*np.pi/n
         order0 = int(np.log(4*np.pi/12/sr0)/np.log(4))+1
@@ -228,6 +303,13 @@ class HARPix():
         return self
 
     def add_ipix(self, ipix, order, clean = True, fill = 0., insert_first = False):
+        """Add pixels according to index.
+
+        Parameters
+        ----------
+        * `ipix` [integers]: 
+        """
+        # TODO
         if insert_first:
             self.ipix = np.append(ipix, self.ipix)
             self.order = np.append(order, self.order)
@@ -243,6 +325,19 @@ class HARPix():
         return self
 
     def add_iso(self, nside = 1, clean = True, fill = 0.):
+        """Add isotropic component with nside.
+
+        Parameters
+        ----------
+        * `nside` [integer]: Healpix parameter for isotropic map.
+        * `clean` [boolean]: If `False`, skip internal clean-up of overlapping
+          pixels.
+        * `fill` [float]: Isotropic fill.
+
+        Returns
+        -------
+        * `self`: Returns this HARPix instance.
+        """
         order = hp.nside2order(nside)
         npix = hp.nside2npix(nside)
         ipix = np.arange(0, npix)
@@ -255,6 +350,21 @@ class HARPix():
         return self
 
     def add_disc(self, vec, radius, nside, clean = True, fill = 0.):
+        """Add disc component.
+
+        Parameters
+        ----------
+        * `vec` [tuple]: Center of disc.
+        * `radius` [float]: Radius of disc to add.
+        * `nside` [integer]: Healpix parameter for isotropic map.
+        * `clean` [boolean]: If `False`, skip internal clean-up of overlapping
+          pixels.
+        * `fill` [float]: Value inside disk.
+
+        Returns
+        -------
+        * `self`: Returns this HARPix instance.
+        """
         if len(vec) == 2:
             vec = hp.ang2vec(vec[0], vec[1], lonlat=True)
         radius = np.deg2rad(radius)
@@ -269,6 +379,20 @@ class HARPix():
         return self
 
     def add_polygon(self, vertices, nside, clean = True, fill = 0.):
+        """Add polygon component.
+
+        Parameters
+        ----------
+        * `vertices` [tuple]: List of vertices defining polygon.
+        * `nside` [integer]: Healpix parameter for isotropic map.
+        * `clean` [boolean]: If `False`, skip internal clean-up of overlapping
+          pixels.
+        * `fill` [float]: Value inside disk.
+
+        Returns
+        -------
+        * `self`: Returns this HARPix instance.
+        """
         order = hp.nside2order(nside)
         ipix = hp._query_disc.query_polygon(nside, vertices, nest=True)
         self.ipix = np.append(self.ipix, ipix)
@@ -280,13 +404,36 @@ class HARPix():
         return self
 
     def get_formatted_like(self, h):
+        """Returns new reformatted HARPix object.
+
+        Parameters
+        ----------
+        * `h` [HARPix]: HARPix object with template format
+
+        Returns
+        -------
+        * `H` [HARPix]: New HARPix object with data from `self` and format from
+          `h`.
+        """
         T = get_trans_matrix(self, h)
         H = deepcopy(h)
-        H.data = trans_data(T, self.data)
+        H.data = _trans_data(T, self.data)
         return H
 
     def get_healpix(self, nside, idxs = (), nest = True):
         T = get_trans_matrix(self, nside, nest = nest)
+        """Returns healpix map.
+
+        Parameters
+        ----------
+        * `nside` [integral]: Healpix `nside` parameter.
+        * `idxs` [integer tupel]: Indices of data slice.
+        * `nest` [boolean]: If `False`, return ring-ordered map.
+
+        Returns
+        -------
+        * `map` [array]: Healpix map.
+        """
         if idxs == ():
             return T.dot(self.data)
         elif len(idxs) == 1:
@@ -299,6 +446,8 @@ class HARPix():
             raise NotImplementedError()
 
     def _clean(self):
+        """Iteratively merge overlapping pixels while adding data.
+        """
         orders = np.unique(self.order)
         clean_ipix = []
         clean_data = []
@@ -349,11 +498,13 @@ class HARPix():
         return self
 
     def __iadd__(self, other):
+        """Increment map, keeping pixels of original map."""
         T = get_trans_matrix(other, self)
-        self.data += trans_data(T, other.data)
+        self.data += _trans_data(T, other.data)
         return self
 
     def __mul__(self, other):
+        """Multiply maps, and merge pixelization."""
         if isinstance(other, HARPix):
             h1 = deepcopy(self)
             h2 = deepcopy(other)
@@ -369,7 +520,7 @@ class HARPix():
             raise NotImplementedError
 
     def __add__(self, other):
-        """Add to dense map."""
+        """Multiply maps, and merge pixelization."""
         if isinstance(other, HARPix):
             this = deepcopy(self)
             this.data = np.append(this.data, other.data, axis=0)
@@ -381,6 +532,12 @@ class HARPix():
             raise NotImplementedError
 
     def remove_zeros(self):
+        """Remove pixels with zero data.
+
+        Returns
+        -------
+        * `self`
+        """
         mask = self.data != 0.
         self.ipix = self.ipix[mask]
         self.data = self.data[mask]
@@ -388,12 +545,23 @@ class HARPix():
         return self
 
     def get_area(self):
-        """Return area covered by map in steradian."""
+        """Return covered area in steradian.
+
+        Returns
+        -------
+        * `area` [float]: Covered area.
+        """
         sr = 4*np.pi/12*4.**-self.order
         return sum(sr)
 
     def get_integral(self):
-        """Return area covered by map in steradian."""
+        """Return integrated flux over area.
+
+        Returns
+        -------
+        * `f` [float]: Integral.
+        """
+        # FIXME: Works only for 0-dim data.
         sr = 4*np.pi/12*4.**-self.order
         M = (self.data.T*sr).T
         return M.sum(axis=0)
@@ -409,11 +577,21 @@ class HARPix():
         return self
 
     def mul_func(self, func, mode = 'lonlat', **kwargs):
+        """Evaluate function on map and multiply with data.
+
+        Parameters
+        ----------
+        * `func` [function]: Function on map.
+        * `mode` [str]: Parametrization. `lonlat` or `dist`.
+        """
+        # FIXME: Better documentation.
         values = self._evalulate(func, mode = mode, **kwargs)
         self.data *= values
         return self
 
     def add_func(self, func, mode = 'lonlat', **kwargs):
+        """Equivalent to `mul_func`."""
+        # FIXME: Better documentation.
         values = self._evalulate(func, mode = mode, **kwargs)
         self.data += values
         return self
@@ -445,6 +623,12 @@ class HARPix():
         return values
 
     def apply_mask(self, mask_func, mode = 'lonlat'):
+        """Apply mask to map.
+
+        Parameters
+        ----------
+        * `mask_func` [function]: Functional definition of pixel masp.
+        """
         self.mul_func(mask_func, mode = mode)
         self.remove_zeros()
         return self
@@ -503,7 +687,7 @@ def _test():
     quit()
 
     T = get_trans_matrix(h1, h2)
-    h2.data = trans_data(T, h1.data)
+    h2.data = _trans_data(T, h1.data)
 
     #print h2.get_integral()
 #    T1 = get_trans_matrix(h1, 64)

@@ -178,7 +178,8 @@ class Harpix():
         self.data = np.empty((0,)+self.dims, dtype=np.float64)
 
     @classmethod
-    def from_healpix(cls, m, indices = None, nside = None, nest = True):
+    def from_healpix(cls, m, indices = None, nside = None, nest = True, div_sr
+            = False):
         """Construct Harpix object from regular healpix data.
 
         Parameters
@@ -189,6 +190,8 @@ class Harpix():
         * `nside` [integer]: `nside` of map, only required if `indices` is not
           `None`.
         * `nest` [boolean]: If `True`, assume that `m` is in nest format.
+        * `div_sr` [boolean]: If `True`, divide by sr pixel size before storing
+          data.
         """
         dims = np.shape(m[0])
         if indices is None:
@@ -215,6 +218,9 @@ class Harpix():
         r.ipix = ipix  # Nest indices
         r.order = np.ones(len(ipix), dtype=np.int8)*order
         r.data = data
+
+        if div_sr:
+            r._div_sr()
 
         return r
 

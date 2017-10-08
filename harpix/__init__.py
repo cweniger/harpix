@@ -29,7 +29,7 @@ Installation
 
 Let us know if you run into problems.
 
-`harpix` can be installed by invocing
+`harpix` can be installed by invoking
 
     git clone https://github.com/cweniger/harpix
     cd harpix

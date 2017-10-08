@@ -177,27 +177,44 @@ class Harpix():
         self.data = np.empty((0,)+self.dims, dtype=np.float64)
 
     @classmethod
-    def from_healpix(cls, m, nest = True):
+    def from_healpix(cls, m, indices = None, nside = None, nest = True):
         """Construct Harpix object from regular healpix data.
 
         Parameters
         ----------
-        * `m` [array]: Data array.
-        * `nest` [boolean]: If `True`, assume nested data.
+        * `m` [array (N, d1, d2, d3, ...)]: Data array, with `N` sky pixels.
+        * `indices` [vector with length `N` OR `None`]: Healpix indices.  If
+          `None`, assume full sky covery and proper pixel ordering.
+        * `nside` [integer]: `nside` of map, only required if `indices` is not
+          `None`.
+        * `nest` [boolean]: If `True`, assume that `m` is in nest format.
         """
-        npix = len(m)
-        nside = hp.npix2nside(npix)
+        dims = np.shape(m[0])
+        if indices is None:
+            npix = len(m)
+            nside = hp.npix2nside(npix)
+            if nest:
+                data = m
+            else:
+                i = hp.nest2ring(nside, r.ipix)
+                data = m[i]  # Re-order data
+            ipix = np.arange(npix, dtype=np.int64)  # nest indices
+        elif indices is not None and nside is not None:
+            npix = hp.nside2npix(nside)
+            data = m
+            if nest:
+                ipix = indices
+            else:
+                ipix = hp.ring2nest(nside, indices)
+        else:
+            raise KeyError("nside not set.")
         order = hp.nside2order(nside)
 
-        dims = np.shape(m[0])
         r = cls(dims = dims)
-        r.ipix = np.arange(npix, dtype=np.int64)
-        if not nest:
-            i = hp.nest2ring(nside, r.ipix)
-            r.data = m[i]
-        else:
-            r.data = m
+        r.ipix = ipix  # Nest indices
         r.order = np.ones(npix, dtype=np.int8)*order
+        r.data = data
+
         return r
 
     @classmethod

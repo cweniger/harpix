@@ -54,6 +54,7 @@ def get_trans_matrix(IN, OUT, nest = True, counts = False):
     * `M` [array-like]: Matrix that transforms flattened data of format IN onto
       flattened data of format OUT.
     """
+    # FIXME: Update description
     if isinstance(IN, Harpix) and isinstance(OUT, Harpix):
         if counts: raise NotImplementedError()
         return _get_trans_matrix_HARP2HARP(IN, OUT)
@@ -212,7 +213,7 @@ class Harpix():
 
         r = cls(dims = dims)
         r.ipix = ipix  # Nest indices
-        r.order = np.ones(npix, dtype=np.int8)*order
+        r.order = np.ones(len(ipix), dtype=np.int8)*order
         r.data = data
 
         return r

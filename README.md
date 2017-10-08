@@ -14,7 +14,7 @@ Documentation
 -------------
 
 The documentation of `harpix` can be found on
-[github.io](https://cweniger.github.io/harpix).
+[github.io](https://cweniger.github.io/harpix/).
 
 
 Installation

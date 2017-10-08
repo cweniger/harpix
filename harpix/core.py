@@ -13,11 +13,11 @@ from copy import deepcopy
 # A thin python wrapper around healpix
 
 def zeros_like(h):
-    """Create zero HARPix object with shape of `h`.
+    """Create zero Harpix object with shape of `h`.
 
     Parameters
     ----------
-    * `h` [HARPix]: HARPix object.
+    * `h` [Harpix]: Harpix object.
     """
     H = deepcopy(h)
     H.data *= 0.
@@ -46,20 +46,20 @@ def get_trans_matrix(IN, OUT, nest = True, counts = False):
 
     Parameters
     ----------
-    * `IN` [HARPix]: Harpix input map.
-    * `OUT` [HARPix]: Harpix output map.
+    * `IN` [Harpix]: Harpix input map.
+    * `OUT` [Harpix]: Harpix output map.
 
     Returns
     -------
     * `M` [array-like]: Matrix that transforms flattened data of format IN onto
       flattened data of format OUT.
     """
-    if isinstance(IN, HARPix) and isinstance(OUT, HARPix):
+    if isinstance(IN, Harpix) and isinstance(OUT, Harpix):
         if counts: raise NotImplementedError()
         return _get_trans_matrix_HARP2HARP(IN, OUT)
-    elif isinstance(IN, HARPix) and isinstance(OUT, int):
+    elif isinstance(IN, Harpix) and isinstance(OUT, int):
         return _get_trans_matrix_HARP2HPX(IN, OUT, nest = nest, counts = counts)
-    elif isinstance(IN, int) and isinstance(OUT, HARPix):
+    elif isinstance(IN, int) and isinstance(OUT, Harpix):
         if counts: raise NotImplementedError()
         return _get_trans_matrix_HPX2HARP(IN, OUT, nest = nest)
     else:
@@ -116,7 +116,7 @@ def _get_trans_matrix_HARP2HPX(Hin, nside, nest = True, counts = False):
     return M
 
 def _get_trans_matrix_HPX2HARP(nside, Hout, nest = True):
-    Hin = HARPix()
+    Hin = Harpix()
     Hin.add_iso(nside)
     if not nest:
         Hin.ipix = hp.ring2nest(nside, Hin.ipix)
@@ -159,13 +159,13 @@ def _get_trans_matrix_HARP2HARP(Hin, Hout):
     return A.tocsr()
 
 
-class HARPix():
+class Harpix():
     """Thin healpy wrapper to allow multi-resolution maps.
     """
     def __init__(self, dims = ()):
         """Constructor.
 
-        The constructor returns an empty HARPix object without any pixels set.
+        The constructor returns an empty Harpix object without any pixels set.
 
         Parameters
         ----------
@@ -178,7 +178,7 @@ class HARPix():
 
     @classmethod
     def from_healpix(cls, m, nest = True):
-        """Construct HARPix object from regular healpix data.
+        """Construct Harpix object from regular healpix data.
 
         Parameters
         ----------
@@ -216,7 +216,7 @@ class HARPix():
         return r
 
     def expand(self, values):
-        """Return new HARPix object with expanded data.
+        """Return new Harpix object with expanded data.
 
         If `n = len(values)` and `dim = (k, m)`, this method returns an object
         with `dim = (k, m, n)`, and `data[k, m, n] = data_old[k, m] * values[n]`.
@@ -227,7 +227,7 @@ class HARPix():
         """
         n = len(values)
         dims = self.dims + (n,)
-        r = HARPix(dims = dims)
+        r = Harpix(dims = dims)
         r.order = self.order
         r.ipix = self.ipix
         data = np.repeat(self.data.flatten(), n)*np.tile(values, len(self.data.flatten()))
@@ -336,7 +336,7 @@ class HARPix():
 
         Returns
         -------
-        * `self`: Returns this HARPix instance.
+        * `self`: Returns this Harpix instance.
         """
         order = hp.nside2order(nside)
         npix = hp.nside2npix(nside)
@@ -363,7 +363,7 @@ class HARPix():
 
         Returns
         -------
-        * `self`: Returns this HARPix instance.
+        * `self`: Returns this Harpix instance.
         """
         if len(vec) == 2:
             vec = hp.ang2vec(vec[0], vec[1], lonlat=True)
@@ -391,7 +391,7 @@ class HARPix():
 
         Returns
         -------
-        * `self`: Returns this HARPix instance.
+        * `self`: Returns this Harpix instance.
         """
         order = hp.nside2order(nside)
         ipix = hp._query_disc.query_polygon(nside, vertices, nest=True)
@@ -404,15 +404,15 @@ class HARPix():
         return self
 
     def get_formatted_like(self, h):
-        """Returns new reformatted HARPix object.
+        """Returns new reformatted Harpix object.
 
         Parameters
         ----------
-        * `h` [HARPix]: HARPix object with template format
+        * `h` [Harpix]: Harpix object with template format
 
         Returns
         -------
-        * `H` [HARPix]: New HARPix object with data from `self` and format from
+        * `H` [Harpix]: New Harpix object with data from `self` and format from
           `h`.
         """
         T = get_trans_matrix(self, h)
@@ -505,7 +505,7 @@ class HARPix():
 
     def __mul__(self, other):
         """Multiply maps, and merge pixelization."""
-        if isinstance(other, HARPix):
+        if isinstance(other, Harpix):
             h1 = deepcopy(self)
             h2 = deepcopy(other)
             h1.add_ipix(other.ipix, other.order, insert_first=True)
@@ -521,7 +521,7 @@ class HARPix():
 
     def __add__(self, other):
         """Multiply maps, and merge pixelization."""
-        if isinstance(other, HARPix):
+        if isinstance(other, Harpix):
             this = deepcopy(self)
             this.data = np.append(this.data, other.data, axis=0)
             this.ipix = np.append(this.ipix, other.ipix)
@@ -669,101 +669,3 @@ class HARPix():
             return lon, lat
         else:
             return vec
-
-def _test():
-    dims = (10,3)
-    D = np.ones(dims)
-    h1 = HARPix(dims = dims).add_iso(32).add_random()
-    h2 = HARPix(dims = dims).add_iso(64).add_random()
-
-    h1.add_singularity((0,0), 0.1, 20, n = 100)#.add_random()
-    h1.add_singularity((0,-10), 0.1, 20, n = 100)#.add_random()
-    h2.add_singularity((0,10), 0.1, 20, n = 100)#.add_random()
-    h1.add_func(lambda d: D*0.1/d, center = (0,10.0), mode='dist')
-    h1.add_func(lambda d: D*0.1/d, center = (0,0.0), mode='dist')
-    h2.add_func(lambda d: D*0.1/d, center = (0,-10.0), mode='dist')
-
-    h1 += h2
-    quit()
-
-    T = get_trans_matrix(h1, h2)
-    h2.data = _trans_data(T, h1.data)
-
-    #print h2.get_integral()
-#    T1 = get_trans_matrix(h1, 64)
-#    T2 = get_trans_matrix(64, h1)
-#    print h1.get_integral()
-
-#    h1.data = T2.dot(T1.dot(h1.data))
-
-    m = h1.get_healpix(256)
-    hp.mollview(np.log10(m), nest =True)
-    plt.savefig('test.eps')
-    quit()
-    #h2.add_random()
-    T = get_trans_matrix(h1, h2)
-    h2.data += T.dot(h1.data)
-    print h2.get_integral()
-    m = h2.get_healpix(256)
-    hp.mollview(np.log10(m), nest =True)
-    plt.savefig('test.eps')
-
-    quit()
-
-    h.add_iso(nside = 1)
-    h.add_singularity((0,0.0), 0.1, 100, n = 100)#.add_random()
-    h.add_func(lambda d: 0.1/d, center = (0,0.0), mode='dist')
-    h.add_singularity((80,20), 0.1, 100, n = 100)#.add_random()
-    #h.add_singularity((30,20), 0.1, 100, n = 1000)#.add_random()
-    #h.add_func(lambda d: 0.1/d, center = (30,20), mode='dist')
-    #h.add_random()
-    #h.apply_mask(lambda l, b: abs(b) < 3)
-    h.print_info()
-
-    m = h.get_healpix(32)
-    hp.mollview(np.log10(m), nest = True, cmap='gnuplot')
-    #hp.cartview(np.log10(m), nest = True, cmap='gnuplot', lonra = [-1, 1],
-          #  latra = [-1, 1])
-    print h.get_integral()
-    h.add_iso(nside = 4)
-    h.add_singularity((0,0), 0.1, 100, n = 1000)#.add_random()
-    h.add_func(lambda d: 0.1/d, center = (0,0), mode='dist')
-    h.add_singularity((30,20), 0.1, 100, n = 1000)#.add_random()
-    h.add_func(lambda d: 0.1/d, center = (30,20), mode='dist')
-    h.add_random()
-    #h.apply_mask(lambda l, b: abs(b) < 3)
-    h.print_info()
-
-    m = h.get_healpix(32)
-    m = hp.smoothing(m, sigma =1, nest=True)
-    hp.mollview(np.log10(m), nest = True, cmap='gnuplot')
-    quit()
-    quit()
-
-    npix = hp.nside2npix(8)
-    m = np.random.random((npix, 2,3))
-    h=HARPix.from_healpix(m)
-    m = h.get_healpix(128, idxs = (1,1))
-    h.print_info()
-    hp.mollview(np.log10(m), nest = True, cmap='gnuplot')
-    plt.savefig('test2.eps')
-
-    h = HARPix(dims=(10,)).add_iso(fill = 100)
-    for i in range(10):
-        lonlat = (40*i, 10*i)
-        h0 = HARPix(dims=(10,))
-        h0.add_peak(lonlat, .01, 10)
-        print np.shape(h0.data)
-        x = np.linspace(1, 10, 10)
-        h0.add_func(lambda dist: x/(dist+0.01), mode = 'dist', center = lonlat)
-        h += h0
-    m = h.get_healpix(128, idxs=(4,))
-    h.print_info()
-    #hp.mollview(np.log10(m), nest = True, cmap='gnuplot', min = 1, max = 4)
-    hp.cartview(np.log10(m), cmap='gnuplot', min = 1, max = 4)
-    plt.savefig('test.eps')
-    hp.mollview(np.log10(m), nest = True, cmap='gnuplot', min = 1, max = 4)
-    plt.savefig('test3.eps')
-
-if __name__ == "__main__":
-    _test()

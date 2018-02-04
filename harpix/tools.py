@@ -9,20 +9,43 @@ from scipy.sparse import linalg as la
 from scipy.integrate import quad
 
 class HarpixSigma(la.LinearOperator):
-    """docstring for CovarianceMatrix"""
+    """Covariance matrix generator for harpix objects."""
     def __init__(self, harpix):
+        """
+        Parameters
+        ----------
+        * `harpix` [Harpix object]: Harpix object on which (flattened) data the
+        covariance matrix will act.
+        """
         self.harpix = harpix
         self.N = np.prod(np.shape(self.harpix.data))
         super(harpix_Sigma, self).__init__(None, (self.N, self.N))
         self.Flist = []
         self.Xlist = []
 
-    def addsystematics(self, err = None, sigma = None, Sigma = None,
+    def addsystematics(self, err = None, corrlength = None, Sigma = None,
             nside = None):
+        """Add contribution to covariance matrix.
+
+        Parameters
+        ----------
+        * `err` [Harpix object]: Skymap that defines the magnitude of the error
+        * `corrlength` [float]: Correlation length in deg.
+        * `Sigma` [matrix-like]: Covariance matrix for (flattened) non-spatial
+        dimensions of harpix map.
+        * `nside` [int, None]: If `nside` equals None, use dense spatial
+        correlation matrix.  Otherwise internally convert to `nside` healpix
+        map, use `healpy` to perform convolution, and then convert back.
+
+        Returns
+        -------
+        * `self`
+        """
+        # TODO: Divide out normalization of Sigma
         F = err.get_formatted_like(self.harpix).get_data(mul_sr=True)
         self.Flist.append(F)
 
-        if nside > 1:
+        if nside is not None:
             # Use healpy to do convolution
             lmax = 3*nside - 1  # default from hp.smoothing
             Nalm = hp.Alm.getsize(lmax)
@@ -71,6 +94,8 @@ class HarpixSigma(la.LinearOperator):
 
         self.Xlist.append([X0, X1])
 
+        return self
+
     def _matvec(self,x):
         result = np.zeros(self.N)
         for F, X in zip(self.Flist, self.Xlist):
@@ -106,43 +131,43 @@ def getmodelinput(signals, noise, systematics, exposure):
     return S, N, SYS, E
 
 class Logbins(object):
-   def __init__(self, start, stop, num):
-      """Return log-bin object.
+    def __init__(self, start, stop, num):
+        """Return log-bin object.
 
-      Parameters
-      ----------
-      start : float
-          ``base ** start`` is the starting value of the sequence.
-      stop : float
-           ``base ** stop`` is the final value of the sequence, unless `endpoint`
-           is False.  In that case, ``num + 1`` values are spaced over the
-           interval in log-space, of which all but the last (a sequence of
-           length `num`) are returned.
-       num : integer
-           Number of samples to generate.
+        Parameters
+        ----------
+        start : float
+            ``base ** start`` is the starting value of the sequence.
+        stop : float
+             ``base ** stop`` is the final value of the sequence, unless `endpoint`
+             is False.  In that case, ``num + 1`` values are spaced over the
+             interval in log-space, of which all but the last (a sequence of
+             length `num`) are returned.
+         num : integer
+             Number of samples to generate.
 
-       Returns
-       -------
-       out : Logbins
+         Returns
+         -------
+         out : Logbins
 
-       """
+         """
 
-      assert start < stop
-      self.start = start
-      self.stop = stop
-      self.num = num 
+        assert start < stop
+        self.start = start
+        self.stop = stop
+        self.num = num 
 
-      self.bounds = np.logspace(start, stop, num+1)
-      self.bins = np.array(zip(self.bounds[:-1], self.bounds[1:]))
-      self.widths= self.bins[:,1]-self.bins[:,0]
-      self.means = self.bins.prod(axis=1)**0.5
+        self.bounds = np.logspace(start, stop, num+1)
+        self.bins = np.array(zip(self.bounds[:-1], self.bounds[1:]))
+        self.widths= self.bins[:,1]-self.bins[:,0]
+        self.means = self.bins.prod(axis=1)**0.5
 
-   def integrate(self, function):
-       out = []
-       for xmin, xmax in self.bins:
-           o, oerr = quad(function, xmin, xmax)
-           out.append(o)
-       return np.array(out)
+    def integrate(self, function):
+        out = []
+        for xmin, xmax in self.bins:
+            o, oerr = quad(function, xmin, xmax)
+            out.append(o)
+        return np.array(out)
 
 class Convolution1D(object):
     """General 1-D covolution object."""

@@ -44,4 +44,5 @@ this package with a link to this website.
 """
 
 from harpix.core import *
-__all__ = ["zeros_like", "get_trans_matrix", "Harpix"]
+from harpix.tools import *
+__all__ = ["zeroslike", "Harpix", "HarpixSigma"]

@@ -12,7 +12,7 @@ from copy import deepcopy
 # Hierarchical Adaptive Resolution Pixelization of the Sphere
 # A thin python wrapper around healpix
 
-def zeros_like(h):
+def zeroslike(h):
     """Create zero Harpix object with shape of `h`.
 
     Parameters
@@ -41,7 +41,7 @@ def _trans_data(T, data):
         raise NotImplementedError()
     return out
 
-def get_trans_matrix(IN, OUT, nest = True, counts = False):
+def _get_trans_matrix(IN, OUT, nest = True, counts = False):
     """Return transformation matrix.
 
     Parameters
@@ -118,10 +118,10 @@ def _get_trans_matrix_HARP2HPX(Hin, nside, nest = True, counts = False):
 
 def _get_trans_matrix_HPX2HARP(nside, Hout, nest = True):
     Hin = Harpix()
-    Hin.add_iso(nside)
+    Hin.addiso(nside)
     if not nest:
         Hin.ipix = hp.ring2nest(nside, Hin.ipix)
-    T = get_trans_matrix(Hin, Hout)
+    T = _get_trans_matrix(Hin, Hout)
     return T
 
 def _get_trans_matrix_HARP2HARP(Hin, Hout):
@@ -178,7 +178,7 @@ class Harpix():
         self.data = np.empty((0,)+self.dims, dtype=np.float64)
 
     @classmethod
-    def from_healpix(cls, m, indices = None, nside = None, nest = True, div_sr
+    def fromhealpix(cls, m, indices = None, nside = None, nest = True, div_sr
             = False):
         """Construct Harpix object from regular healpix data.
 
@@ -225,7 +225,7 @@ class Harpix():
         return r
 
     @classmethod
-    def from_file(cls, filename):
+    def fromfile(cls, filename):
         """Construct HARPIx object from *.npy file.
 
         Parameters
@@ -258,7 +258,7 @@ class Harpix():
         r.data = data.reshape((-1,)+dims)
         return r
 
-    def write_file(self, filename):
+    def writefile(self, filename):
         np.savez(filename, ipix = self.ipix, order = self.order, dims = self.dims, data = self.data)
         return self
 
@@ -281,7 +281,7 @@ class Harpix():
             H._div_sr()
         return H
 
-    def get_data(self, mul_sr = False):
+    def getdata(self, mul_sr = False):
         """Return data array.
 
         Parameters
@@ -295,14 +295,14 @@ class Harpix():
             sr = 4*np.pi/12*4.**-self.order
             return (self.data.T*sr).T
 
-    def print_info(self):
+    def printinfo(self):
         """Print summary information."""
         print "Number of pixels: %i"%len(self.data)
         print "Minimum nside:    %i"%hp.order2nside(min(self.order))
         print "Maximum nside:    %i"%hp.order2nside(max(self.order))
         return self
 
-    def add_singularity(self, vec, r0, r1, n = 100):
+    def addsingularity(self, vec, r0, r1, n = 100):
         """Add region with centrally increasing pixel density.
 
         The grid is defined such that each radius r with r0<r<r1 contains
@@ -322,11 +322,11 @@ class Harpix():
         for o in range(order1, order0+1):
             r = r1/2**(o-order1)
             nside = hp.order2nside(o)
-            self.add_disc(vec, r, nside, clean = False)
+            self.adddisc(vec, r, nside, clean = False)
         self._clean()
         return self
 
-    def add_ipix(self, ipix, order, clean = True, fill = 0., insert_first = False):
+    def addipix(self, ipix, order, clean = True, fill = 0., insert_first = False):
         """Add pixels according to index.
 
         Parameters
@@ -348,7 +348,7 @@ class Harpix():
             self._clean()
         return self
 
-    def add_iso(self, nside = 1, clean = True, fill = 0.):
+    def addiso(self, nside = 1, clean = True, fill = 0.):
         """Add isotropic component with nside.
 
         Parameters
@@ -373,7 +373,7 @@ class Harpix():
             self._clean()
         return self
 
-    def add_disc(self, vec, radius, nside, clean = True, fill = 0.):
+    def adddisc(self, vec, radius, nside, clean = True, fill = 0.):
         """Add disc component.
 
         Parameters
@@ -402,7 +402,7 @@ class Harpix():
             self._clean()
         return self
 
-    def add_polygon(self, vertices, nside, clean = True, fill = 0.):
+    def addpolygon(self, vertices, nside, clean = True, fill = 0.):
         """Add polygon component.
 
         Parameters
@@ -427,7 +427,7 @@ class Harpix():
             self._clean()
         return self
 
-    def get_formatted_like(self, h):
+    def getformattedlike(self, h):
         """Returns new reformatted Harpix object.
 
         Parameters
@@ -439,13 +439,13 @@ class Harpix():
         * `H` [Harpix]: New Harpix object with data from `self` and format from
           `h`.
         """
-        T = get_trans_matrix(self, h)
+        T = _get_trans_matrix(self, h)
         H = deepcopy(h)
         H.data = _trans_data(T, self.data)
         return H
 
-    def get_healpix(self, nside, idxs = (), nest = True):
-        T = get_trans_matrix(self, nside, nest = nest)
+    def gethealpix(self, nside, idxs = (), nest = True):
+        T = _get_trans_matrix(self, nside, nest = nest)
         """Returns healpix map.
 
         Parameters
@@ -523,7 +523,7 @@ class Harpix():
 
     def __iadd__(self, other):
         """Increment map, keeping pixels of original map."""
-        T = get_trans_matrix(other, self)
+        T = _get_trans_matrix(other, self)
         self.data += _trans_data(T, other.data)
         return self
 
@@ -532,8 +532,8 @@ class Harpix():
         if isinstance(other, Harpix):
             h1 = deepcopy(self)
             h2 = deepcopy(other)
-            h1.add_ipix(other.ipix, other.order, insert_first=True)
-            h2.add_ipix(self.ipix, self.order)
+            h1.addipix(other.ipix, other.order, insert_first=True)
+            h2.addipix(self.ipix, self.order)
             h1.data *= h2.data
             return h1
         elif isinstance(other, float):
@@ -555,7 +555,7 @@ class Harpix():
         else:
             raise NotImplementedError
 
-    def remove_zeros(self):
+    def removezeros(self):
         """Remove pixels with zero data.
 
         Returns
@@ -568,7 +568,7 @@ class Harpix():
         self.order = self.order[mask]
         return self
 
-    def get_area(self):
+    def getarea(self):
         """Return covered area in steradian.
 
         Returns
@@ -578,7 +578,7 @@ class Harpix():
         sr = 4*np.pi/12*4.**-self.order
         return sum(sr)
 
-    def get_integral(self):
+    def getintegral(self):
         """Return integrated flux over area.
 
         Returns
@@ -600,7 +600,7 @@ class Harpix():
         self.data = (self.data.T/sr).T
         return self
 
-    def mul_func(self, func, mode = 'lonlat', **kwargs):
+    def mulfunc(self, func, mode = 'lonlat', **kwargs):
         """Evaluate function on map and multiply with data.
 
         Parameters
@@ -613,8 +613,8 @@ class Harpix():
         self.data *= values
         return self
 
-    def add_func(self, func, mode = 'lonlat', **kwargs):
-        """Equivalent to `mul_func`."""
+    def addfunc(self, func, mode = 'lonlat', **kwargs):
+        """Equivalent to `mulfunc`."""
         # FIXME: Better documentation.
         values = self._evalulate(func, mode = mode, **kwargs)
         self.data += values
@@ -637,40 +637,40 @@ class Harpix():
             raise NotImplementedError()
         f = np.vectorize(func, signature = signature)
         if mode == 'lonlat':
-            lon, lat = self.get_lonlat()
+            lon, lat = self.getlonlat()
             values = f(lon, lat)
         elif mode == 'dist':
-            dist = self.get_dist(center[0], center[1])
+            dist = self.getdist(center[0], center[1])
             values = f(dist)
         else:
             raise KeyError("Mode unknown.")
         return values
 
-    def apply_mask(self, mask_func, mode = 'lonlat'):
+    def applymask(self, mask_func, mode = 'lonlat'):
         """Apply mask to map.
 
         Parameters
         ----------
         * `mask_func` [function]: Functional definition of pixel masp.
         """
-        self.mul_func(mask_func, mode = mode)
-        self.remove_zeros()
+        self.mulfunc(mask_func, mode = mode)
+        self.removezeros()
         return self
 
-    def get_dist(self, lon, lat):
-        lonV, latV = self.get_lonlat()
+    def getdist(self, lon, lat):
+        lonV, latV = self.getlonlat()
         dist = hp.rotator.angdist([lon, lat], [lonV, latV], lonlat=True)
         dist = np.rad2deg(dist)
         return dist
 
-    def add_random(self):
+    def addrandom(self):
         self.data += np.random.random(np.shape(self.data))
         return self
 
-    def get_lonlat(self):
+    def getlonlat(self):
         return self._get_position(lonlat = True)
 
-    def get_vec(self):
+    def getvec(self):
         return self._get_position(lonlat = False)
 
     def _get_position(self, lonlat = False):

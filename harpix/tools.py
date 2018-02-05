@@ -19,12 +19,32 @@ class HarpixSigma(la.LinearOperator):
         """
         self.harpix = harpix
         self.N = np.prod(np.shape(self.harpix.data))
-        super(harpix_Sigma, self).__init__(None, (self.N, self.N))
+        super(HarpixSigma, self).__init__(None, (self.N, self.N))
         self.Flist = []
         self.Xlist = []
 
-    def addsystematics(self, err = None, corrlength = None, Sigma = None,
-            nside = None):
+#    def add2(self, M, S, thetaM, thetaS, ConstM, ConstS, SigmaM, SigmaS, nside
+#            = None):
+#        """
+#
+#        Parameters
+#        ----------
+#        `M`: Harpix map (no data)
+#        `S`: Spectrum
+#        `ConstM`: Constraints (potentially)
+#        `ConstS`: Constraints (potentially)
+#        `SigmaM`: Constraints (potentially)
+#        `SigmaS`: Constraints (potentially)
+#        """
+#        # Construct M0, dM, and constM
+#        # Construct S0, dS, and constS
+#        # Get map from H onto harpix(M0 x S0)
+#        # Get inverse map
+#        # Generate SigmaM contribution
+#        # Generate SigmaS contribution
+#
+    def add(self, err = None, corrlength = None, Sigma = None,
+            nside = None, mul_sr=False):
         """Add contribution to covariance matrix.
 
         Parameters
@@ -32,17 +52,18 @@ class HarpixSigma(la.LinearOperator):
         * `err` [Harpix object]: Skymap that defines the magnitude of the error
         * `corrlength` [float]: Correlation length in deg.
         * `Sigma` [matrix-like]: Covariance matrix for (flattened) non-spatial
-        dimensions of harpix map.
+          dimensions of harpix map.
         * `nside` [int, None]: If `nside` equals None, use dense spatial
-        correlation matrix.  Otherwise internally convert to `nside` healpix
-        map, use `healpy` to perform convolution, and then convert back.
+          correlation matrix.  Otherwise internally convert to `nside` healpix
+          map, use `healpy` to perform convolution, and then convert back.
+        * `mul_sr` [boolean]: If `true`, `err` will be effectively multiplied
+          by `sr` when generating the covariance matrix.
 
         Returns
         -------
         * `self`
         """
-        # TODO: Divide out normalization of Sigma
-        F = err.get_formatted_like(self.harpix).get_data(mul_sr=True)
+        F = err.getformattedlike(self.harpix).getdata(mul_sr=mul_sr)
         self.Flist.append(F)
 
         if nside is not None:
@@ -50,13 +71,13 @@ class HarpixSigma(la.LinearOperator):
             lmax = 3*nside - 1  # default from hp.smoothing
             Nalm = hp.Alm.getsize(lmax)
             G = np.zeros(Nalm, dtype = 'complex128')
-            H = hp.smoothalm(np.ones(Nalm), sigma = np.deg2rad(sigma), inplace = False, verbose = False)
+            H = hp.smoothalm(np.ones(Nalm), sigma = np.deg2rad(corrlength), inplace = False, verbose = False)
             npix = hp.nside2npix(nside)
             m = np.zeros(npix)
             m[10] = 1
             M = hp.alm2map(hp.map2alm(m)*H, nside, verbose = False)
             G += H/max(M)
-            T = harp.get_trans_matrix(self.harpix, nside, nest = False, counts = True)
+            T = harp.gettransmatrix(self.harpix, nside, nest = False, counts = True)
 
             def X1(x):
                 z = harp.trans_data(T, x)
@@ -72,11 +93,11 @@ class HarpixSigma(la.LinearOperator):
                     b = hp.alm2map(alm, nside, verbose = False)
                 return harp.trans_data(T.T, b)
         else:
-            vec = self.harpix.get_vec()
+            vec = self.harpix.getvec()
             N = len(self.harpix.data)
             M = np.zeros((N, N))
             #corr = 2.**(self.harpix.order-2)
-            sigma2 = np.deg2rad(sigma)**2
+            sigma2 = np.deg2rad(corrlength)**2
             for i in range(N):
                 dist = hp.rotator.angdist(vec[:,i], vec)
                 M[i] = np.exp(-dist**2/2/sigma2)
@@ -116,9 +137,9 @@ def getsigma(x, f):
 
 def getmodelinput(signals, noise, systematics, exposure):
     # Everything is intensity
-    S = [sig.get_formatted_like(signals[0]).get_data(mul_sr=True).flatten() for sig in signals]
-    N = noise.get_formatted_like(signals[0]).get_data(mul_sr=True).flatten()
-    SYS = harpix_Sigma(signals[0])
+    S = [sig.getformattedlike(signals[0]).getdata(mul_sr=True).flatten() for sig in signals]
+    N = noise.getformatte_like(signals[0]).getdata(mul_sr=True).flatten()
+    SYS = HarpixSigma(signals[0])
     if systematics is None:
         SYS = None
     else:
@@ -127,7 +148,7 @@ def getmodelinput(signals, noise, systematics, exposure):
     if isinstance(exposure, float):
         E = np.ones_like(N)*exposure
     else:
-        E = exposure.get_formatted_like(signals[0]).get_data().flatten()
+        E = exposure.getformattedlike(signals[0]).getdata().flatten()
     return S, N, SYS, E
 
 class Logbins(object):

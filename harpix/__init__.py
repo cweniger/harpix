@@ -45,4 +45,4 @@ this package with a link to this website.
 
 from harpix.core import *
 from harpix.tools import *
-__all__ = ["zeroslike", "Harpix", "HarpixSigma"]
+__all__ = ["zeroslike", "Harpix", "HarpixSigma", "Logbins"]

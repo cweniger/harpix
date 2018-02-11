@@ -8,6 +8,45 @@ import harpix as harp
 from scipy.sparse import linalg as la
 from scipy.integrate import quad
 
+class HarpixSigma1D(la.LinearOperator):
+    """Covariance matrix generator for harpix objects."""
+    def __init__(self, harpix, err, corrlength = None, nside = None):
+        """
+        Parameters
+        ----------
+        * `harpix` [Harpix object]: Harpix object on which (flattened) data the
+        covariance matrix will act.
+        * `err` [Harpix object]: Skymap that defines the magnitude of the error
+        * `corrlength` [float]: Correlation length in deg.
+        * `Sigma` [matrix-like]: Covariance matrix for (flattened) non-spatial
+          dimensions of harpix map.
+        * `nside` [int, None]: If `nside` equals None, use dense spatial
+          correlation matrix.  Otherwise internally convert to `nside` healpix
+          map, use `healpy` to perform convolution, and then convert back.
+        * `mul_sr` [boolean]: If `true`, `err` will be effectively multiplied
+          by `sr` when generating the covariance matrix.
+
+        Returns
+        -------
+        * `self`
+        """
+        self.err = err
+        self.N = np.len(self.err.data)
+        super(HarpixSigma, self).__init__(None, (self.N, self.N))
+
+        F = err.getdata(mul_sr = False)
+        vec = self.err.getvec()
+        N = len(self.err.data)
+        M = np.zeros((N, N))
+        sigma_sq = np.deg2rad(corrlength)**2
+        for i in range(N):
+            dist = hp.rotator.angdist(vec[:,i], vec)
+            M[i] = np.exp(-dist**2/2/sigma_sq)
+        self.M = M
+
+    def _matvec(self,x):
+        return self.M.dot(x*F)*F
+
 #SigmaDims(S, x0, x_err, sigma = ...)
 #comp1 = Sigma1 * Sigma2
 #the_sum = comp1 + comp2 + comp3

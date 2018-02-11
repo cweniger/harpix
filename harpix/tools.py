@@ -8,6 +8,23 @@ import harpix as harp
 from scipy.sparse import linalg as la
 from scipy.integrate import quad
 
+#SigmaDims(S, x0, x_err, sigma = ...)
+#comp1 = Sigma1 * Sigma2
+#the_sum = comp1 + comp2 + comp3
+#SF = the_sum.getSwordfish()
+#
+#SigmaHarpix(M, x0, x_err, sigma = ...)
+#
+#
+#
+#
+#
+#
+#Swordfish(B, T, C, E)
+#
+#
+#Swordfish(B = Btot, Sigma = Sigmatot, E = ...)
+#
 class HarpixSigma(la.LinearOperator):
     """Covariance matrix generator for harpix objects."""
     def __init__(self, harpix):
@@ -23,7 +40,7 @@ class HarpixSigma(la.LinearOperator):
         self.Flist = []
         self.Xlist = []
 
-#    def add2(self, M, S, thetaM, thetaS, ConstM, ConstS, SigmaM, SigmaS, nside
+#    def add2(self, M, S, xm, xs, err_xm, err_xs, sigma_m, Sigma_S, nside
 #            = None):
 #        """
 #
@@ -189,6 +206,14 @@ class Logbins(object):
             o, oerr = quad(function, xmin, xmax)
             out.append(o)
         return np.array(out)
+
+#    def average(self, function):
+#        out = []
+#        for xmin, xmax in self.bins:
+#            o, oerr = quad(function, xmin, xmax)
+#            out.append(o/(xmax-xmin))
+#        return np.array(out)
+#
 
 class Convolution1D(object):
     """General 1-D covolution object."""

@@ -620,7 +620,8 @@ class Harpix():
         self.data += values
         return self
 
-    def _evalulate(self, func, mode = 'lonlat', center = None):
+    def _evalulate(self, func, mode = 'lonlat', center = None, single_valued =
+            False):
         nargs = len(inspect.getargspec(func).args)
         signature = "()"
         signature += ",()"*(nargs-1)
@@ -635,7 +636,12 @@ class Harpix():
             signature += "(n,m,k)"
         else:
             raise NotImplementedError()
-        f = np.vectorize(func, signature = signature)
+
+        if single_valued:
+            f = np.vectorize(func)
+        else:
+            f = np.vectorize(func, signature = signature)
+
         if mode == 'lonlat':
             lon, lat = self.getlonlat()
             values = f(lon, lat)
@@ -646,15 +652,17 @@ class Harpix():
             raise KeyError("Mode unknown.")
         return values
 
-    def applymask(self, mask_func, mode = 'lonlat'):
+    def applymask(self, mask_func, mode = 'lonlat', **kwargs):
         """Apply mask to map.
 
         Parameters
         ----------
         * `mask_func` [function]: Functional definition of pixel masp.
         """
-        self.mulfunc(mask_func, mode = mode)
-        self.removezeros()
+        mask = self._evalulate(mask_func, mode = mode, single_valued = True, **kwargs)
+        self.ipix = self.ipix[mask]
+        self.order = self.order[mask]
+        self.data = self.data[mask]
         return self
 
     def getdist(self, lon, lat):

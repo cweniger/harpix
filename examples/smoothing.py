@@ -25,39 +25,48 @@ Arguments
 * `verbose` [boolean] : Report progress.
 
 """
-def smoothing(outmap, inmap, sigma, sigmacut = 3, verbose = False):
+def smoothing(outmap, inmap, sigma, sigmacut = 3, renormalize_kernel = True, verbose = False):
     if type(sigma) == float:
         sigma = np.ones(inmap.dims)*sigma
     invecs = inmap.getvec().T
     outvecs = outmap.getvec().T
-    indata = inmap.getdata(mul_sr = False)
-    sr = inmap.getsr()
+    indata = inmap.getdata(mul_sr = not renormalize_kernel)
+    in_sr = inmap.getsr()
     D = 2*np.sin(sigma/2)
     # Factor 1.01 makes sure D_max covers all relevant points.
     D_max = 2*np.sin(max(sigmacut*sigma.max(), np.pi)/2)*1.01
     inv_D = 1/D
+    D2 = 2*np.pi*D*D
     if verbose: print 'Searching nearest neigbors'
     tree = BallTree(invecs)
     ind, dist = tree.query_radius(outvecs, r = D_max, return_distance = True)
     for i in tqdm(range(len(outvecs)), desc = "Convolution"):
-        weights = np.exp(-0.5*np.multiply.outer(dist[i], inv_D)**2)
-        weightssr = (sr[ind[i]]*weights.T).T
-        norm = weightssr.sum(axis=0)
-        weightssrnorm = weightssr/np.expand_dims(norm, axis=0)
-        x = (indata[ind[i]]*weightssrnorm).sum(axis=0)
-        outmap.data[i] = x
+        if renormalize_kernel:
+            weights = np.exp(-0.5*np.multiply.outer(dist[i], inv_D)**2)
+            weightssr = (in_sr[ind[i]]*weights.T).T
+            norm = weightssr.sum(axis=0)
+            weightssr = weightssr/np.expand_dims(norm, axis=0)
+            x = (indata[ind[i]]*weightssr).sum(axis=0)
+            outmap.data[i] = x
+        else:
+            weights = np.exp(-0.5*np.multiply.outer(dist[i], inv_D)**2)/D2
+            x = (indata[ind[i]]*weights).sum(axis=0)
+            outmap.data[i] = x
 
 def test():
     HP = harp.Harpix(dims = ())
     HP.addiso(nside=32)
+    HP.adddisc((0., 0.), 10., 64, fill = 1.)
+    HP.adddisc((0., 0.), 2.0, 256, fill = 2.)
+
     HPout = harp.Harpix(dims = ())
-    HPout.addiso(nside=32)
+    HPout.adddisc((0., 0.), 40., 64)
+    #HPout.addiso(nside=32)
 
-    HP.data[0] = 1.3
-
-    smoothing(HPout, HP, 0.1, verbose = True, sigmacut = 3.0)
-    print HPout.getintegral()
+    smoothing(HPout, HP, 0.06, verbose = True, sigmacut = 3.0,
+            renormalize_kernel = True)
     print HP.getintegral()
+    print HPout.getintegral()
 
     m = HPout.gethealpix(nside=64)
     hp.mollview(m[:], nest=True)

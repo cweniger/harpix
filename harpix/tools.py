@@ -10,7 +10,7 @@ from scipy.integrate import quad
 
 class HarpixSigma1D(la.LinearOperator):
     """Covariance matrix generator for harpix objects."""
-    def __init__(self, harpix, err, corrlength = None, nside = None):
+    def __init__(self, err, corrlength = None):
         """
         Parameters
         ----------
@@ -30,13 +30,11 @@ class HarpixSigma1D(la.LinearOperator):
         -------
         * `self`
         """
-        self.err = err
-        self.N = np.len(self.err.data)
-        super(HarpixSigma, self).__init__(None, (self.N, self.N))
+        N = len(err.data)
+        super(HarpixSigma1D, self).__init__(None, (N, N))
 
-        F = err.getdata(mul_sr = False)
-        vec = self.err.getvec()
-        N = len(self.err.data)
+        self.F = err.getdata(mul_sr = False)
+        vec = err.getvec()
         M = np.zeros((N, N))
         sigma_sq = np.deg2rad(corrlength)**2
         for i in range(N):
@@ -44,8 +42,8 @@ class HarpixSigma1D(la.LinearOperator):
             M[i] = np.exp(-dist**2/2/sigma_sq)
         self.M = M
 
-    def _matvec(self,x):
-        return self.M.dot(x*F)*F
+    def _matvec(self, x):
+        return (self.M.dot((x.T*self.F).T).T*self.F).T
 
 #SigmaDims(S, x0, x_err, sigma = ...)
 #comp1 = Sigma1 * Sigma2

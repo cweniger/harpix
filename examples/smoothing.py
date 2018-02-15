@@ -8,34 +8,32 @@ import pylab as plt
 from sklearn.neighbors import BallTree
 from tqdm import tqdm
 
-"""
-Kernel smoothing of harpix maps in real space.
-
-Works best for small patches of the sky.  For the convolution of full sky maps
-use standard healpy routines, based on spherical harmonics.
-
-NOTE: When setting `renormalize_kernel` to `True`, the sum over weights is only
-taken over pixels that are included in `inmap`.  This implies that, in order to
-get the expected results, `inmap` must cover the area of the `outmap` plus the
-tails of the kernel.
-
-Arguments
----------
-* `outmap` [harpix] : Output map.  Only pixelization is relevant, data will be
-  overwritten (but should have same dimensionality as input map).
-* `inmap` [harpix] : Input map.
-* `sigma` [float] : Width of gaussian kernel in standard deviations (rad).
-* `sigmacut` [float] : Effective size of convolution kernel, in standard
-  deviations.
-* `renormalize_kernel` [boolean] (default False) : Ensure that kernel weights
-  sum up to one.  See above note for more details.
-* `verbose` [boolean] : Report progress.
-
-"""
-
-
 def smoothing(outmap, inmap, sigma, sigmacut = 3, verbose = False,
         renormalize_kernel = False):
+    """
+    Kernel smoothing of harpix maps in real space.
+
+    Works best for small patches of the sky.  For the convolution of full sky maps
+    use standard healpy routines, based on spherical harmonics.
+
+    NOTE: When setting `renormalize_kernel` to `True`, the sum over weights is only
+    taken over pixels that are included in `inmap`.  This implies that, in order to
+    get the expected results, `inmap` must cover the area of the `outmap` plus the
+    tails of the kernel.
+
+    Arguments
+    ---------
+    * `outmap` [harpix] : Output map.  Only pixelization is relevant, data will be
+      overwritten (but should have same dimensionality as input map).
+    * `inmap` [harpix] : Input map.
+    * `sigma` [float] : Width of gaussian kernel in standard deviations (rad).
+    * `sigmacut` [float] : Effective size of convolution kernel, in standard
+      deviations.
+    * `renormalize_kernel` [boolean] (default False) : Ensure that kernel weights
+      sum up to one.  See above note for more details.
+    * `verbose` [boolean] : Report progress.
+
+    """
     if type(sigma) == float:
         sigma = np.ones(inmap.dims)*sigma
     invecs = inmap.getvec().T

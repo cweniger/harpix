@@ -8,6 +8,7 @@ import pylab as plt
 import scipy.sparse as sp
 import inspect
 from copy import deepcopy
+from sklearn.neighbors import BallTree
 
 # Hierarchical Adaptive Resolution Pixelization of the Sphere
 # A thin python wrapper around healpix
@@ -568,6 +569,16 @@ class Harpix():
         self.order = self.order[mask]
         return self
 
+    def getsr(self):
+        """Return pixel size in steradian.
+
+        Returns
+        -------
+        * `sr` [array]: Pixel size.
+        """
+        sr = 4*np.pi/12*4.**-self.order
+        return sr
+
     def getarea(self):
         """Return covered area in steradian.
 
@@ -701,3 +712,78 @@ class Harpix():
             return lon, lat
         else:
             return vec
+
+    def smooth(self, sigma, sigmacut = 3):
+        self._smoothing(self, self, sigma, sigmacut = sigmacut)
+        return self
+
+    def smooth_into(self, outmap, sigma, sigmacut = 3):
+        self._smoothing(outmap, self, sigma, sigmacut = sigmacut)
+        return self
+
+    @staticmethod
+    def _smoothing(outmap, inmap, sigma, sigmacut = 3, verbose = False,
+            renormalize_kernel = False):
+        """
+        Kernel smoothing of harpix maps in real space.
+
+        Works best for small patches of the sky.  For the convolution of full sky maps
+        use standard healpy routines, based on spherical harmonics.
+
+        NOTE: When setting `renormalize_kernel` to `True`, the sum over weights is only
+        taken over pixels that are included in `inmap`.  This implies that, in order to
+        get the expected results, `inmap` must cover the area of the `outmap` plus the
+        tails of the kernel.
+
+        Arguments
+        ---------
+        * `outmap` [harpix] : Output map.  Only pixelization is relevant, data will be
+          overwritten (but should have same dimensionality as input map).
+        * `inmap` [harpix] : Input map.
+        * `sigma` [float] : Width of gaussian kernel in standard deviations (rad).
+        * `sigmacut` [float] : Effective size of convolution kernel, in standard
+          deviations.
+        * `renormalize_kernel` [boolean] (default False) : Ensure that kernel weights
+          sum up to one.  See above note for more details.
+        * `verbose` [boolean] : Report progress.
+
+        """
+        if type(sigma) == float:
+            sigma = np.ones(inmap.dims)*sigma
+        invecs = inmap.getvec().T
+        outvecs = outmap.getvec().T
+        indata = inmap.getdata(mul_sr = not renormalize_kernel)
+        in_sr = inmap.getsr()
+        out_sr = outmap.getsr()
+        in_pixsize= in_sr**0.5
+        out_pixsize= out_sr**0.5
+        if (sigma.min() < out_pixsize.max()) or (sigma.min() < in_pixsize.max()):
+            print 'ERROR: Pixel size of input or output image is larger than kernel width.'
+            print "Minimum kernel width:", sigma.min()
+            print "Input max pixsize:", in_pixsize.max()
+            print "Output max pixsize:", out_pixsize.max()
+            raise ValueError("ERROR: Maximum pixel size of input or output image larger than kernel width.")
+        if np.rad2deg(sigma.max()) > 20:
+            raise ValueError('WARNING: Maximum kernel width too large (limit is 20 deg).')
+        D = 2*np.sin(sigma/2)
+        # Factor 1.01 makes sure D_max covers all relevant points.
+        D_max = 2*np.sin(max(sigmacut*sigma.max(), np.pi)/2)*1.01
+        inv_D = 1/D
+        D2 = 2*np.pi*D*D
+        if verbose: print 'Searching nearest neigbors.'''
+        tree = BallTree(invecs)
+        ind, dist = tree.query_radius(outvecs, r = D_max, return_distance = True)
+        #for i in tqdm(range(len(outvecs)), desc = "Convolution"):
+        if verbose: print 'Convolving...'
+        for i in range(len(outvecs)), desc = "Convolution":
+            if renormalize_kernel:
+                weights = np.exp(-0.5*np.multiply.outer(dist[i], inv_D)**2)
+                weightssr = (in_sr[ind[i]]*weights.T).T
+                norm = weightssr.sum(axis=0)+1e-100
+                weightssr = weightssr/np.expand_dims(norm, axis=0)
+                x = (indata[ind[i]]*weightssr).sum(axis=0)
+                outmap.data[i] = x
+            else:
+                weights = np.exp(-0.5*np.multiply.outer(dist[i], inv_D)**2)/D2
+                x = (indata[ind[i]]*weights).sum(axis=0)
+                outmap.data[i] = x

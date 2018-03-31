@@ -9,6 +9,8 @@ Motivation
 With `harpix` you can generate, handle and modify multi-resolution partial sky
 maps, based on the HEALPix pixelization scheme.
 
+[Movie!](examples/movie.gif)
+
 
 Documentation
 -------------

@@ -4,7 +4,6 @@
 from __future__ import division
 import numpy as np
 import healpy as hp
-import pylab as plt
 import scipy.sparse as sp
 import inspect
 from copy import deepcopy
@@ -234,7 +233,7 @@ class Harpix():
         * `filename` [string]: Filename of *.npy file.
         """
         data = np.load(filename)
-        r = cls(dims = data['dims'])
+        r = cls(dims = tuple(data['dims']))
         r.ipix = data['ipix']
         r.order = data['order']
         r.data = data['data']
@@ -263,7 +262,7 @@ class Harpix():
         np.savez(filename, ipix = self.ipix, order = self.order, dims = self.dims, data = self.data)
         return self
 
-    def _set_data(self, data):
+    def setdata(self, data, div_sr = False):
         """Overwrite data.
 
         Parameters
@@ -272,12 +271,14 @@ class Harpix():
         """
         assert np.prod(np.shape(self.data)) == np.prod(np.shape(data))
         self.data = data.reshape((-1,)+self.dims)
+        if div_sr:
+            self._div_sr()
         return self
 
     @classmethod
     def _from_data(cls, h, data, div_sr = False):
         H = deepcopy(h)
-        H._set_data(data)
+        H.setdata(data)
         if div_sr:
             H._div_sr()
         return H
@@ -713,14 +714,15 @@ class Harpix():
         else:
             return vec
 
-    def smooth(self, sigma, sigmacut = 3):
-        self._smoothing(self, self, sigma, sigmacut = sigmacut)
+    def smoothing(self, sigma, sigmacut = 3, renormalize_kernel = True):
+        self._smoothing(self, self, sigma, sigmacut = sigmacut,
+                renormalize_kernel = renormalize_kernel)
         return self
-
-    def smooth_into(self, outmap, sigma, sigmacut = 3):
-        self._smoothing(outmap, self, sigma, sigmacut = sigmacut)
-        return self
-
+#
+#    def smooth_into(self, outmap, sigma, sigmacut = 3):
+#        self._smoothing(outmap, self, sigma, sigmacut = sigmacut)
+#        return self
+#
     @staticmethod
     def _smoothing(outmap, inmap, sigma, sigmacut = 3, verbose = False,
             renormalize_kernel = False):
@@ -757,7 +759,8 @@ class Harpix():
         out_sr = outmap.getsr()
         in_pixsize= in_sr**0.5
         out_pixsize= out_sr**0.5
-        if (sigma.min() < out_pixsize.max()) or (sigma.min() < in_pixsize.max()):
+        if (not renormalize_kernel and ((sigma.min() < out_pixsize.max()) or (sigma.min() <
+              in_pixsize.max()))):
             print 'ERROR: Pixel size of input or output image is larger than kernel width.'
             print "Minimum kernel width:", sigma.min()
             print "Input max pixsize:", in_pixsize.max()
@@ -775,7 +778,7 @@ class Harpix():
         ind, dist = tree.query_radius(outvecs, r = D_max, return_distance = True)
         #for i in tqdm(range(len(outvecs)), desc = "Convolution"):
         if verbose: print 'Convolving...'
-        for i in range(len(outvecs)), desc = "Convolution":
+        for i in range(len(outvecs)):
             if renormalize_kernel:
                 weights = np.exp(-0.5*np.multiply.outer(dist[i], inv_D)**2)
                 weightssr = (in_sr[ind[i]]*weights.T).T

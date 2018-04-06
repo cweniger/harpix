@@ -299,9 +299,9 @@ class Harpix():
 
     def printinfo(self):
         """Print summary information."""
-        print "Number of pixels: %i"%len(self.data)
-        print "Minimum nside:    %i"%hp.order2nside(min(self.order))
-        print "Maximum nside:    %i"%hp.order2nside(max(self.order))
+        print("Number of pixels: %i"%len(self.data))
+        print("Minimum nside:    %i"%hp.order2nside(min(self.order)))
+        print("Maximum nside:    %i"%hp.order2nside(max(self.order)))
         return self
 
     def addsingularity(self, vec, r0, r1, n = 100):
@@ -729,7 +729,7 @@ class Harpix():
         """
         Kernel smoothing of harpix maps in real space.
 
-        Works best for small patches of the sky.  For the convolution of full sky maps
+        Intended for small sky patches.  For the convolution of full sky maps
         use standard healpy routines, based on spherical harmonics.
 
         NOTE: When setting `renormalize_kernel` to `True`, the sum over weights is only
@@ -743,8 +743,8 @@ class Harpix():
           overwritten (but should have same dimensionality as input map).
         * `inmap` [harpix] : Input map.
         * `sigma` [float] : Width of gaussian kernel in standard deviations (rad).
-        * `sigmacut` [float] : Effective size of convolution kernel, in standard
-          deviations.
+        * `sigmacut` [float] : Effective size of convolution kernel, in units
+          of sigma.
         * `renormalize_kernel` [boolean] (default False) : Ensure that kernel weights
           sum up to one.  See above note for more details.
         * `verbose` [boolean] : Report progress.
@@ -761,10 +761,10 @@ class Harpix():
         out_pixsize= out_sr**0.5
         if (not renormalize_kernel and ((sigma.min() < out_pixsize.max()) or (sigma.min() <
               in_pixsize.max()))):
-            print 'ERROR: Pixel size of input or output image is larger than kernel width.'
-            print "Minimum kernel width:", sigma.min()
-            print "Input max pixsize:", in_pixsize.max()
-            print "Output max pixsize:", out_pixsize.max()
+            print("ERROR: Pixel size of input or output image is larger than kernel width.")
+            print("Minimum kernel width:", sigma.min())
+            print("Input max pixsize:", in_pixsize.max())
+            print("Output max pixsize:", out_pixsize.max())
             raise ValueError("ERROR: Maximum pixel size of input or output image larger than kernel width.")
         if np.rad2deg(sigma.max()) > 20:
             raise ValueError('WARNING: Maximum kernel width too large (limit is 20 deg).')
@@ -773,11 +773,11 @@ class Harpix():
         D_max = 2*np.sin(max(sigmacut*sigma.max(), np.pi)/2)*1.01
         inv_D = 1/D
         D2 = 2*np.pi*D*D
-        if verbose: print 'Searching nearest neigbors.'''
+        if verbose: print("Searching nearest neigbors.")
         tree = BallTree(invecs)
         ind, dist = tree.query_radius(outvecs, r = D_max, return_distance = True)
         #for i in tqdm(range(len(outvecs)), desc = "Convolution"):
-        if verbose: print 'Convolving...'
+        if verbose: print("Convolving...")
         for i in range(len(outvecs)):
             if renormalize_kernel:
                 weights = np.exp(-0.5*np.multiply.outer(dist[i], inv_D)**2)
